@@ -17,6 +17,7 @@ func ExecutePipeline(jobs ...job) {
 		go func(in, out chan interface{}) {
 			defer wg.Done()
 			jobs[i](in, out)
+			close(out)
 		}(in, out)
 		in = out
 	}
