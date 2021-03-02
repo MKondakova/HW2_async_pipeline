@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
@@ -25,42 +26,64 @@ func ExecutePipeline(jobs ...job) {
 	wg.Wait()
 }
 
-func transmitter(in, out chan int) {
+var singleHashCalled int = 0
+
+func SingleHash(in, out chan interface{}) {
 	for {
 		val, ok := <-in
-		val++
-		out <- val
 		if !ok {
 			break
 		}
+		fmt.Println(val, "SingleHash val")
+		data := fmt.Sprintf("%v", val)
+		fmt.Println(data, "SingleHash data", data)
+		d1 := DataSignerCrc32(data)
+		fmt.Println(data, "SingleHash crc32(data)", d1)
+		d2 := DataSignerMd5(data)
+		fmt.Println(data, "SingleHash md5(data)", d2)
+		d3 := DataSignerCrc32(d2)
+		fmt.Println(data, "SingleHash crc32(md5(data))", d3)
+		result := d1 + "~" + d3
+		fmt.Println(data, "SingleHash result", result)
+		out <- result
+		singleHashCalled++
 	}
 }
-
-func main() {
-	in := make(chan int)
-	firstIn := in
-	var out chan int
-	for i := 0; i < 5; i++ {
-		out = make(chan int)
-		go transmitter(in, out)
-		in = out
+func MultiHash(in, out chan interface{}) {
+	for {
+		val, ok := <-in
+		if !ok {
+			break
+		}
+		fmt.Println(val, "MultiHash val")
+		data := fmt.Sprintf("%v", val)
+		result := ""
+		for i := 0; i <= 5; i++ {
+			i := i
+			tempRes := DataSignerCrc32(string(i) + data)
+			fmt.Println(data, "MultiHash: crc32(th+step1))", i, tempRes)
+			result += tempRes
+		}
+		fmt.Println(data, "MultiHash: result", result)
+		out <- result
 	}
-	upper := 300
-	for i := 100; i <= upper-1; i += 100 {
-		firstIn <- i
-	}
-	fmt.Scanln()
-	for i := range out {
-		fmt.Println("iout", i)
-	}
-	firstIn <- 1
-	//out = make(chan int)
-	//go transmitter(in, out)
-	//in = out
-	//out = make(chan int)
-	//go transmitter(in, out)
-	fmt.Print("out", <-out)
-
 }
+func CombineResults(in, out chan interface{}) {
+	var result []string
+	for {
+		val, ok := <-in
+		if !ok {
+			break
+		}
+		result = append(result, fmt.Sprintf("%v", val))
 
-// сюда писать код
+	}
+	sort.Sort(sort.StringSlice(result))
+	resultString := ""
+	for _, s := range result {
+
+		resultString += "_" + s
+	}
+	fmt.Println("CombineResults", result)
+	out <- result
+}
