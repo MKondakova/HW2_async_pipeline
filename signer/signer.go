@@ -34,27 +34,27 @@ func SingleHash(in, out chan interface{}) {
 		}
 		data := fmt.Sprintf("%v", val)
 		fmt.Println(data, "SingleHash data", data)
-		d2 := DataSignerMd5(data)
-		fmt.Println(data, "SingleHash md5(data)", d2)
+		md5Hash := DataSignerMd5(data)
+		fmt.Println(data, "SingleHash md5(data)", md5Hash)
 		outerWg.Add(1)
 		go func() {
 			defer outerWg.Done()
-			var d1, d3 string
+			var crc32FromData, crc32FromMd5 string
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				d1 = DataSignerCrc32(data)
+				crc32FromData = DataSignerCrc32(data)
 			}()
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				d3 = DataSignerCrc32(d2)
+				crc32FromMd5 = DataSignerCrc32(md5Hash)
 			}()
 			wg.Wait()
-			fmt.Println(data, "SingleHash crc32(data)", d1)
-			fmt.Println(data, "SingleHash crc32(md5(data))", d3)
-			result := d1 + "~" + d3
+			fmt.Println(data, "SingleHash crc32(data)", crc32FromData)
+			fmt.Println(data, "SingleHash crc32(md5(data))", crc32FromMd5)
+			result := crc32FromData + "~" + crc32FromMd5
 			fmt.Println(data, "SingleHash result", result)
 			out <- result
 		}()
