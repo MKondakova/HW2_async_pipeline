@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -33,9 +34,7 @@ func SingleHash(in, out chan interface{}) {
 			break
 		}
 		data := fmt.Sprintf("%v", val)
-		fmt.Println(data, "SingleHash data", data)
 		md5Hash := DataSignerMd5(data)
-		fmt.Println(data, "SingleHash md5(data)", md5Hash)
 		outerWg.Add(1)
 		go func() {
 			defer outerWg.Done()
@@ -52,15 +51,13 @@ func SingleHash(in, out chan interface{}) {
 				crc32FromMd5 = DataSignerCrc32(md5Hash)
 			}()
 			wg.Wait()
-			fmt.Println(data, "SingleHash crc32(data)", crc32FromData)
-			fmt.Println(data, "SingleHash crc32(md5(data))", crc32FromMd5)
 			result := crc32FromData + "~" + crc32FromMd5
-			fmt.Println(data, "SingleHash result", result)
 			out <- result
 		}()
 	}
 	outerWg.Wait()
 }
+
 func MultiHash(in, out chan interface{}) {
 	outerWg := &sync.WaitGroup{}
 	for {
@@ -80,20 +77,15 @@ func MultiHash(in, out chan interface{}) {
 					defer wg.Done()
 					th := strconv.Itoa(i)
 					result[i] = DataSignerCrc32(th + data)
-					fmt.Println(data, "MultiHash: crc32(th+step1))", i, result[i])
 				}(i)
 			}
 			wg.Wait()
-			resultString := ""
-			for _, s := range result {
-				resultString += s
-			}
-			fmt.Println(data, "MultiHash: result", resultString)
-			out <- resultString
+			out <- strings.Join(result[:], "")
 		}()
 	}
 	outerWg.Wait()
 }
+
 func CombineResults(in, out chan interface{}) {
 	var result []string
 	for {
@@ -102,18 +94,7 @@ func CombineResults(in, out chan interface{}) {
 			break
 		}
 		result = append(result, fmt.Sprintf("%v", val))
-
 	}
 	sort.Sort(sort.StringSlice(result))
-	resultString := ""
-	if len(result) > 0 {
-
-		resultString = result[0]
-		for i := 1; i < len(result); i++ {
-
-			resultString += "_" + result[i]
-		}
-	}
-	fmt.Println("CombineResults", resultString)
-	out <- resultString
+	out <- strings.Join(result, "_")
 }
